@@ -14,45 +14,38 @@ from urllib import urlencode, urlretrieve
 
 import datetime
 
-# Data URI + params
-mparams = {
-    'study_id': 16880941,
-    'sensor_type': 'gps',
-    'max_events_per_individual': 100
-}
-jsonUrl = "https://www.movebank.org/movebank/service/public/json?"
-
-url = urlencode(mparams, True)
-
-print("url", jsonUrl + url)
-
-dj = pd.read_json(jsonUrl + url)
-
-
-birds = dj.individuals
-
-lats = [[l['location_lat'] for l in b['locations']] for b in birds]
-longs = [[l['location_long'] for l in b['locations']] for b in birds]
-
-data = [{
-    'lat': [l['location_lat'] for l in bird['locations']],
-    'lon': [l['location_long'] for l in bird['locations']],
-    'type': 'scattermapbox',
-    'mode': 'lines',
-    'line': {
-        'width': 1,
-        'color': 'red'
+def fetch_data():
+    # Data URI + params
+    mparams = {
+        'study_id': 16880941,
+        'sensor_type': 'gps',
+        'max_events_per_individual': 100
     }
-} for bird in birds]
-
-#print("dats: ", data)
+    jsonUrl = "https://www.movebank.org/movebank/service/public/json?"
+    url = urlencode(mparams, True)
+    dat = pd.read_json(jsonUrl + url)
+    
+    return dat.individuals
 
 app = dash.Dash()
 
+app.css.config.serve_locally=True
+
 app.layout = html.Div([
-    html.H1('Turkey Vulture Movement Patterns', className='header'),
+    html.Link(href='style.css', rel='stylesheet'),
+    html.H1('Turkey Vulture Movement Patterns', className='header',
+        style={
+            'font-family': '"Verdana", Arial, sans-serif',
+            'text-align': 'center',
+            'color': '#3F007D'
+        }
+        ),
     html.Div([
-        'Colors',
+        html.Span('Colors', style={
+            'font-family': '"Open Sans", Helvetica, Arial, sans-serif',
+            'color': '#252525',
+            'margin-left': '30px'
+        }),
         dash_colorscales.DashColorscales(
             id='color-picker',
             nSwatches=19,
@@ -77,21 +70,21 @@ app.layout = html.Div([
     Input('color-picker', 'colorscale')],
     [State('graph', 'relayoutData')] 
 )
-def update_graph(n, colorscale, main_graph_layout):
-    if main_graph_layout is not None:
-        lon = float(main_graph_layout['mapbox']['center']['lon'])
-        lat = float(main_graph_layout['mapbox']['center']['lat'])
-        zoom = float(main_graph_layout['mapbox']['zoom'])
+def update_graph(n, colorscale, layout):
+    
+    birds = fetch_data()
+
+    if layout is not None:
+        lon = float(layout['mapbox']['center']['lon'])
+        lat = float(layout['mapbox']['center']['lat'])
+        zoom = float(layout['mapbox']['zoom'])
     else:
         lon = -76
         lat = 39
         zoom = 4
     fig = {
         'animate': True,
-        'plot_bgcolor': "#191A1A",
-        'paper_bgcolor': "#020202",
         'layout':  {
-            'legend': {'title': 'ledge'},
             'mapbox': {
                 'accesstoken': (
                     'pk.eyJ1Ijoid2JyZ3NzIiwiYSI6ImNqaXY5bGxhdzA2MH' +
@@ -105,13 +98,11 @@ def update_graph(n, colorscale, main_graph_layout):
                 'zoom': zoom
             },
             'margin': {
-                'b': 0, 't': 0
+                'l': 0, 'r': 0, 'b': 0, 't': 0
             },
         }
     }
 
-    print("colorscale:", colorscale)
-    
     COLORS = ["#d32f2f", "#d81b60", "#8e24aa", "#5e35b1", "#3949ab", "#1e88e5", \
             "#81d4fa", "#006064", "#00897b", "#4caf50", "#ccff90", "#eeff41", \
             "#ffeb3b", "#ffb300", "#fb8c00", "#ff8a65", "#8d6e63", "#bdbdbd", "#78909c"]
